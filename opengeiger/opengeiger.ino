@@ -27,6 +27,9 @@ int count = 0;
 long precTime;
 int isCo = 0;
 
+// Alimentation
+#define ALIM_VOLT_DIV_INV 1.3
+
 // Indicateurs à leds
 #define LED_ETAT 0
 #define LED_BLUETOOTH 1
@@ -94,9 +97,8 @@ void setup() {
 }
 
 void loop() {
-  if (millis() - precTime > 1000) {
-   // Toutes les secondes, on envoi le comptage et la tension au smartphone
-   int alim_tension = ((analogRead(PIN_ALIM) * 360) / 1023.0) ;
+  if (millis() - precTime > 1000) { // Toutes les secondes, on envoi le comptage et la tension au smartphone
+   int alim_tension = ((analogRead(PIN_ALIM) * 360.0 * ALIM_VOLT_DIV_INV) / 1023.0);
    
    char buff[4]; // 2 int
    memcpy(&buff[0], &alim_tension, sizeof(int));
