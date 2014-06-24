@@ -3,9 +3,10 @@
 
 // Pins
 #define PIN_PWM 1
+#define PIN_ALIM 6
 #define PIN_MESURE_HT 3
 #define PIN_COMPTEUR 4
-#define PIN_LEDS 6
+#define PIN_LEDS 5
 
 // Asservissement
 #define VOLTAGE_DIVIDER_INV 318.63
@@ -94,9 +95,15 @@ void setup() {
 
 void loop() {
   if (millis() - precTime > 1000) {
-   // Toutes les secondes, on envoi le comptage au smartphone
-   RFduinoBLE.sendInt(count);
- 
+   // Toutes les secondes, on envoi le comptage et la tension au smartphone
+   int alim_tension = ((analogRead(PIN_ALIM) * 360) / 1023.0) ;
+   
+   char buff[4]; // 2 int
+   memcpy(&buff[0], &alim_tension, sizeof(int));
+   memcpy(&buff[2], &count, sizeof(int));
+   
+   while (! RFduinoBLE.send((const char*)buff, 4));
+   
    precTime = millis();
    count = 0;
  }
