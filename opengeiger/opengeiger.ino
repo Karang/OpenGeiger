@@ -88,7 +88,7 @@ void setup() {
   RFduino_pinWakeCallback(PIN_COMPTEUR, LOW, countCallback);
  
   RFduinoBLE.deviceName = "OpenGeiger"; // Le nom et la description doivent faire
-  RFduinoBLE.advertisementData = ""; // moins de 18 octets en tout.
+  RFduinoBLE.advertisementData = "SBM20"; // moins de 18 octets en tout.
  
   RFduinoBLE.begin();
  
