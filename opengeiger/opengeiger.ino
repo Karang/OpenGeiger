@@ -2,8 +2,8 @@
 #include "Adafruit_NeoPixel.h"
 
 // Pins
-#define PIN_PWM 1
-#define PIN_ALIM 6
+#define PIN_PWM 2
+#define PIN_ALIM 1
 #define PIN_MESURE_HT 3
 #define PIN_COMPTEUR 4
 #define PIN_LEDS 5
