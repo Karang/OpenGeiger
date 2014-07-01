@@ -9,7 +9,7 @@
 #define PIN_LEDS 5
 
 // Asservissement
-#define VOLTAGE_DIVIDER_INV 318.63
+#define VOLTAGE_DIVIDER_INV 315
 #define kP 0.152
 #define TOLERANCE 8.0
 
