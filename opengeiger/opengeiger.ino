@@ -10,7 +10,7 @@
 
 // Asservissement
 #define VOLTAGE_DIVIDER_INV 315
-#define kP 0.152
+#define kP 0.152 // Valeure déterminée expérimentalement
 #define TOLERANCE 8.0
 
 float actual_tension = 0.0;
