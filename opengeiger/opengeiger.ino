@@ -19,8 +19,11 @@ float ref_tension = 0;
 // PWM
 #define PERIOD 2000
 #define PWM_RESOLUTION 255
+#define max_duty_cycle 0.8  //Cette valeur est le pourcantage maximal de la rapport cyclique que le PWM peut atteindre
+
 int pwm_duty_cycle = 0;
 int pwm_count = 0;
+int limite_PWM=max_duty_cycle*PWM_RESOLUTION;
 
 // Bluetooth et comptage
 int count = 0;
@@ -37,6 +40,13 @@ int isCo = 0;
 #define LED_BRIGHTNESS 32
 #define NB_LEDS 3
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NB_LEDS, PIN_LEDS, NEO_GRB + NEO_KHZ800);
+
+bool etat_led_coup_a_mettre;
+bool etat_led_coup_actuelle;
+
+#define LOOP_COUNTER_LIMIT 200;
+unsigned short loop_counter=0;
+
 
 void TIMER1_INTERUPT(void) {
   if (NRF_TIMER1->EVENTS_COMPARE[0] != 0) {
@@ -66,8 +76,9 @@ void configTimer(NRF_TIMER_Type* nrf_timer, IRQn_Type irqn, callback_t callback)
   nrf_timer->TASKS_START = 1; // Redemarre le timer
 }
 
-int countCallback(uint32_t ulPin) {
+int countCallback(uint32_t ulPin) {  //interruption generé par un coup
   count++;
+  etat_led_coup_a_mettre=true;  //s'il y a un coup alors à prochaine mise à jour d'état du LED blanc, on va l'allumer
   return 0;
 }
  
@@ -78,8 +89,9 @@ void setup() {
   
   strip.begin();
   strip.setBrightness(LED_BRIGHTNESS);
-  strip.show();
- 
+  
+  strip.setPixelColor(LED_BLUETOOTH, strip.Color(0, 0, 0));
+  strip.setPixelColor(LED_PULSE, strip.Color(0, 0, 0));
   strip.setPixelColor(LED_ETAT, strip.Color(0, 255, 0));
   strip.show();
   
@@ -94,6 +106,9 @@ void setup() {
  
   precTime = millis();
   configTimer(NRF_TIMER1, TIMER1_IRQn, TIMER1_INTERUPT);
+  
+  etat_led_coup_a_mettre=false;
+  etat_led_coup_actuelle=false; //LED de coup est etaignt au demarrage
 }
 
 void loop() {
@@ -118,10 +133,30 @@ void loop() {
  }
  if (abs(ref_tension - actual_tension) > TOLERANCE) {
    float a = pwm_duty_cycle + (ref_tension - actual_tension) * kP;
-   pwm_duty_cycle = min(a, 204.0);
+   pwm_duty_cycle = min(a, limite_PWM);
  }
-}
  
+if(loop_counter>LOOP_COUNTER_LIMIT){
+   if (etat_led_coup_a_mettre!=etat_led_coup_actuelle) control_LED_PULSE(); // S'il faut faire une changement dans l'étatde led, alos on fait le changement
+   etat_led_coup_a_mettre=false;
+   loop_counter=0;
+   } else loop_counter++;
+ 
+}
+
+void control_LED_PULSE(){
+   if (!etat_led_coup_a_mettre) {  //si le LED doit s'eteindre
+     strip.setPixelColor(LED_PULSE, strip.Color(0, 0, 0)); //eteignt
+     etat_led_coup_actuelle=false; //maintenant il est eteignt
+     etat_led_coup_a_mettre=false; //il va rester eteignt
+   }
+   else  { strip.setPixelColor(LED_PULSE, strip.Color(255, 255, 255)); //allume
+           etat_led_coup_actuelle=true;  //maintenant il est allumé
+           etat_led_coup_a_mettre=false;  //il va s'eteindre (ou il va rester allumer s'il y a une coup qui apparait dans les 200 boucles qui arrivent)
+         }
+  strip.show();
+}
+
 void RFduinoBLE_onConnect() {
   isCo = 1; // Un smartphone s'est connecté
   strip.setPixelColor(LED_BLUETOOTH, strip.Color(0, 0, 255)); // Etat bluetooth
