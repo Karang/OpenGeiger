@@ -1,12 +1,17 @@
 #include <RFduinoBLE.h>
-#include "Adafruit_NeoPixel.h"
+#include "./Adafruit_NeoPixel.h"
+// CS 10/11/2014
+// Version experimentale : inclut la transmission de l'information concernant
+// le PWM d'asservissement HT
+// en vue du signalement de la saturation du tube
 
 // Pins
-#define PIN_PWM 2
 #define PIN_ALIM 1
+#define PIN_PWM 2
 #define PIN_MESURE_HT 3
 #define PIN_COMPTEUR 4
 #define PIN_LEDS 5
+// define PIN_BUZZER 6 inutilisee pour l instant
 
 // Asservissement
 #define VOLTAGE_DIVIDER_INV 315
@@ -29,9 +34,14 @@ int limite_PWM=max_duty_cycle*PWM_RESOLUTION;
 int count = 0;
 long precTime;
 int isCo = 0;
+int isSaturated  = 0;
+int isWarningOn = 0;
+long satTime;
 
 // Alimentation
 #define ALIM_VOLT_DIV_INV 1.3
+#define BAT_LOW 3.5
+int isBatLowOn = 0;
 
 // Indicateurs à leds
 #define LED_ETAT 0
@@ -41,12 +51,13 @@ int isCo = 0;
 #define NB_LEDS 3
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NB_LEDS, PIN_LEDS, NEO_GRB + NEO_KHZ800);
 
+/* //essais de controle logiciel de la LED comptant les coups
 bool etat_led_coup_a_mettre;
 bool etat_led_coup_actuelle;
 
 #define LOOP_COUNTER_LIMIT 200;
 unsigned short loop_counter=0;
-
+*/
 
 void TIMER1_INTERUPT(void) {
   if (NRF_TIMER1->EVENTS_COMPARE[0] != 0) {
@@ -78,7 +89,7 @@ void configTimer(NRF_TIMER_Type* nrf_timer, IRQn_Type irqn, callback_t callback)
 
 int countCallback(uint32_t ulPin) {  //interruption generé par un coup
   count++;
-  etat_led_coup_a_mettre=true;  //s'il y a un coup alors à prochaine mise à jour d'état du LED blanc, on va l'allumer
+//  etat_led_coup_a_mettre=true;  //s'il y a un coup alors à prochaine mise à jour d'état du LED blanc, on va l'allumer
   return 0;
 }
  
@@ -106,21 +117,47 @@ void setup() {
  
   precTime = millis();
   configTimer(NRF_TIMER1, TIMER1_IRQn, TIMER1_INTERUPT);
-  
+/*  
   etat_led_coup_a_mettre=false;
   etat_led_coup_actuelle=false; //LED de coup est etaignt au demarrage
+*/
 }
 
 void loop() {
   if (millis() - precTime > 1000) { // Toutes les secondes, on envoi le comptage et la tension au smartphone
    int alim_tension = ((analogRead(PIN_ALIM) * 360.0 * ALIM_VOLT_DIV_INV) / 1023.0);
    
-   char buff[4]; // 2 int
+   if((alim_tension<BAT_LOW*100)&&(!isBatLowOn)) {
+     strip.setPixelColor(LED_ETAT, strip.Color(255, 255, 0));
+     strip.show();
+     isBatLowOn=1;
+   }
+   
+//CS 10/11/14
+//  char buff[4];
+  char buff[6]; // 3 int ! attention la limite est à 20 bytes ?
+//CS 
    memcpy(&buff[0], &alim_tension, sizeof(int));
    memcpy(&buff[2], &count, sizeof(int));
-   
-   while (! RFduinoBLE.send((const char*)buff, 4));
-   
+//CS 10/11/14
+   memcpy(&buff[4], &pwm_duty_cycle, sizeof(int));
+// while (! RFduinoBLE.send((const char*)buff, 4));
+//CS 10/11/14   
+   while (! RFduinoBLE.send((const char*)buff, 6));
+//CS
+
+/*   if ((isSaturated)&&(!isWarningOn)); {
+    strip.setPixelColor(LED_PULSE, strip.Color(255, 0, 0));
+    strip.show();
+    isWarningOn = 1;
+   } 
+*/
+/*   if ((isWarningOn)&&(!isSaturated)&&(millis()-satTime>5000)); {
+    strip.setPixelColor(LED_PULSE, strip.Color(0, 0, 0));
+    strip.show();
+    isWarningOn = 0;
+   } 
+*/   
    precTime = millis();
    count = 0;
  }
@@ -131,20 +168,35 @@ void loop() {
  if (isCo==0) {
    ref_tension = 0.0;
  }
+ 
  if (abs(ref_tension - actual_tension) > TOLERANCE) {
    float a = pwm_duty_cycle + (ref_tension - actual_tension) * kP;
    pwm_duty_cycle = min(a, limite_PWM);
+   
+   if(pwm_duty_cycle == limite_PWM) {
+    isSaturated = 1; 
+    satTime = millis();
+   }
+   
+   if(pwm_duty_cycle < 0.95*limite_PWM) {
+    isSaturated = 0; 
+   }
  }
  
+
+}
+
+/*
 if(loop_counter>LOOP_COUNTER_LIMIT){
    if (etat_led_coup_a_mettre!=etat_led_coup_actuelle) control_LED_PULSE(); // S'il faut faire une changement dans l'étatde led, alos on fait le changement
    etat_led_coup_a_mettre=false;
    loop_counter=0;
-   } else loop_counter++;
- 
+   }
+   else loop_counter++;
 }
+*/
 
-void control_LED_PULSE(){
+/* void control_LED_PULSE(){
    if (!etat_led_coup_a_mettre) {  //si le LED doit s'eteindre
      strip.setPixelColor(LED_PULSE, strip.Color(0, 0, 0)); //eteignt
      etat_led_coup_actuelle=false; //maintenant il est eteignt
@@ -156,6 +208,7 @@ void control_LED_PULSE(){
          }
   strip.show();
 }
+*/
 
 void RFduinoBLE_onConnect() {
   isCo = 1; // Un smartphone s'est connecté
