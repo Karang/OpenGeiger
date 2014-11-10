@@ -133,18 +133,13 @@ void loop() {
      isBatLowOn=1;
    }
    
-//CS 10/11/14
 //  char buff[4];
   char buff[6]; // 3 int ! attention la limite est à 20 bytes ?
-//CS 
-   memcpy(&buff[0], &alim_tension, sizeof(int));
-   memcpy(&buff[2], &count, sizeof(int));
-//CS 10/11/14
-   memcpy(&buff[4], &pwm_duty_cycle, sizeof(int));
+   memcpy(&buff[0], &pwm_duty_cycle, sizeof(int));
+   memcpy(&buff[2], &alim_tension, sizeof(int));
+   memcpy(&buff[4], &count, sizeof(int));
 // while (! RFduinoBLE.send((const char*)buff, 4));
-//CS 10/11/14   
    while (! RFduinoBLE.send((const char*)buff, 6));
-//CS
 
 /*   if ((isSaturated)&&(!isWarningOn)); {
     strip.setPixelColor(LED_PULSE, strip.Color(255, 0, 0));
