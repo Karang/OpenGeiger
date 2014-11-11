@@ -1,4 +1,4 @@
-#include <RFduinoBLE.h>
+  #include <RFduinoBLE.h>
 #include "./Adafruit_NeoPixel.h"
 // CS 10/11/2014
 // Version experimentale : inclut la transmission de l'information concernant
@@ -24,19 +24,28 @@ float ref_tension = 0;
 // PWM
 #define PERIOD 2000
 #define PWM_RESOLUTION 255
-#define max_duty_cycle 0.8  //Cette valeur est le pourcantage maximal de la rapport cyclique que le PWM peut atteindre
+#define max_duty_cycle 0.8  //Cette valeur est le pourcentage maximal du rapport cyclique que le PWM peut atteindre
 
+int fake_counter = 0;
+int pdc = 0;
 int pwm_duty_cycle = 0;
 int pwm_count = 0;
-int limite_PWM=max_duty_cycle*PWM_RESOLUTION;
+//int limite_PWM=max_duty_cycle*PWM_RESOLUTION;
+int limite_PWM=204;
+// int sum_pdc = 0;
+// int avg_pdc = 0;
+// int nb_pdc = 0;
+// int entier = 0;
 
 // Bluetooth et comptage
 int count = 0;
 long precTime;
 int isCo = 0;
-int isSaturated  = 0;
-int isWarningOn = 0;
-long satTime;
+// int isSaturated  = 0;
+// int isWarningOn = 0;
+// long satTime;
+// long precTime2;
+
 
 // Alimentation
 #define ALIM_VOLT_DIV_INV 1.3
@@ -100,6 +109,8 @@ void setup() {
   pinMode(PIN_MESURE_HT, INPUT);
   pinMode(PIN_COMPTEUR, INPUT);
   
+  fake_counter = 1;
+  
   strip.begin();
   strip.setBrightness(LED_BRIGHTNESS);
   
@@ -113,7 +124,7 @@ void setup() {
   RFduino_pinWakeCallback(PIN_COMPTEUR, LOW, countCallback);
  
   RFduinoBLE.deviceName = "OpenGeiger"; // Le nom et la description doivent faire
-  RFduinoBLE.advertisementData = "SBM20"; // moins de 18 octets en tout.
+  RFduinoBLE.advertisementData = "ChS-2"; // moins de 18 octets en tout.
  
   RFduinoBLE.begin();
  
@@ -122,6 +133,23 @@ void setup() {
 }
 
 void loop() {
+  
+//  if (millis() - precTime2 > 2000) {
+//   avg_pdc = 100*sum_pdc/nb_pdc;
+//  sum_pdc = 0;
+//   nb_pdc = 0;
+//
+//   if(avg_pdc > 0.95*limite_PWM) {
+//    isSaturated = 1; 
+//    satTime = millis();
+//   }
+//   
+//   if(avg_pdc < 0.95*limite_PWM) {
+//    isSaturated = 0; 
+//  }
+//   precTime2 = millis();
+//  }
+  
   if (millis() - precTime > 1000) { // Toutes les secondes, on envoi le comptage et la tension au smartphone
    int alim_tension = ((analogRead(PIN_ALIM) * 360.0 * ALIM_VOLT_DIV_INV) / 1023.0);
    
@@ -130,9 +158,24 @@ void loop() {
      strip.show();
      isBatLowOn=1;
    }
+
+// test d'un entier bidon : ça marche !   
+//   if (millis() - precTime > 1000) {
+//     fake_counter=fake_counter*2;
+//     if(fake_counter > 32768) {
+//       fake_counter = 1;
+//     }
+//   }
+   
+// cast à la main : ça marche !   
+   for (pdc = 0; pdc < 1000; pdc ++) {
+     if (pdc > pwm_duty_cycle ){    
+     break;
+    }  
+   }
    
    char buff[6]; // 3 int ! attention la limite est à 20 bytes ?
-   intToChar.i = pwm_duty_cycle;
+   intToChar.i = pdc;
    buff[0] = intToChar.c[0];
    buff[1] = intToChar.c[1];
    
@@ -163,16 +206,12 @@ void loop() {
  
  if (abs(ref_tension - actual_tension) > TOLERANCE) {
    float a = pwm_duty_cycle + (ref_tension - actual_tension) * kP;
-   pwm_duty_cycle = min(a, limite_PWM);
+   int b=int(a);
+   pwm_duty_cycle = min(b, limite_PWM);
    
-   if(pwm_duty_cycle == limite_PWM) {
-    isSaturated = 1; 
-    satTime = millis();
-   }
-   
-   if(pwm_duty_cycle < 0.95*limite_PWM) {
-    isSaturated = 0; 
-   }
+//   sum_pdc = sum_pdc + pwm_duty_cycle;
+//   nb_pdc++;
+  
  }
 }
 
