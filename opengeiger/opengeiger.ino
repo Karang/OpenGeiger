@@ -172,12 +172,12 @@ void loop() {
 // test d'un entier bidon : ça marche !   
    if (millis() - precTime > 1000) {
      fake_counter=fake_counter*2;
-     if(fake_counter > 32768) {
+     if(fake_counter > 16384) {
        fake_counter = 1;
      }
    }
    
-   char buff[6]; // 3 int ! attention la limite est à 20 bytes ?
+   char buff[8]; // 3 int ! attention la limite est à 20 bytes ?
    intToChar.i = fake_counter;
    buff[0] = intToChar.c[0];
    buff[1] = intToChar.c[1];
@@ -190,11 +190,15 @@ void loop() {
    buff[4] = intToChar.c[0];
    buff[5] = intToChar.c[1];
    
+   intToChar.i = (int) actual_tension;
+   buff[6] = intToChar.c[0];
+   buff[7] = intToChar.c[1];
+   
    //memcpy(&buff[0], &pwm_duty_cycle, sizeof(int));
    //memcpy(&buff[2], &alim_tension, sizeof(int));
    //memcpy(&buff[4], &count, sizeof(int));
    
-   while (! RFduinoBLE.send((const char*)buff, 6));
+   while (! RFduinoBLE.send((const char*)buff, 8));
    
    precTime = millis();
    count = 0;
