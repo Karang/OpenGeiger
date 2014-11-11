@@ -27,15 +27,14 @@ float ref_tension = 0;
 #define max_duty_cycle 0.8  //Cette valeur est le pourcentage maximal du rapport cyclique que le PWM peut atteindre
 
 int fake_counter = 0;
-int pdc = 0;
 int pwm_duty_cycle = 0;
 int pwm_count = 0;
 //int limite_PWM=max_duty_cycle*PWM_RESOLUTION;
 int limite_PWM=204;
+// int pdc = 0;
 // int sum_pdc = 0;
-// int avg_pdc = 0;
+// float avg_pdc = 0.0;
 // int nb_pdc = 0;
-// int entier = 0;
 
 // Bluetooth et comptage
 int count = 0;
@@ -44,7 +43,7 @@ int isCo = 0;
 // int isSaturated  = 0;
 // int isWarningOn = 0;
 // long satTime;
-// long precTime2;
+long precTime2;
 
 
 // Alimentation
@@ -55,9 +54,10 @@ int isBatLowOn = 0;
 // Indicateurs à leds
 #define LED_ETAT 0
 #define LED_BLUETOOTH 1
-#define LED_PULSE 2
+// #define LED_PULSE 2
+#define NB_LEDS 2
+//#define NB_LEDS 3
 #define LED_BRIGHTNESS 32
-#define NB_LEDS 3
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NB_LEDS, PIN_LEDS, NEO_GRB + NEO_KHZ800);
 
 // Utilitaires de conversion
@@ -110,12 +110,15 @@ void setup() {
   pinMode(PIN_COMPTEUR, INPUT);
   
   fake_counter = 1;
+//  avg_pdc = 0.0;
+//  sum_pdc = 0;
+//  nb_pdc = 0;
   
   strip.begin();
   strip.setBrightness(LED_BRIGHTNESS);
   
   strip.setPixelColor(LED_BLUETOOTH, strip.Color(0, 0, 0));
-  strip.setPixelColor(LED_PULSE, strip.Color(0, 0, 0));
+//  strip.setPixelColor(LED_PULSE, strip.Color(0, 0, 0));
   strip.setPixelColor(LED_ETAT, strip.Color(0, 255, 0));
   strip.show();
   
@@ -135,16 +138,23 @@ void setup() {
 void loop() {
   
 //  if (millis() - precTime2 > 2000) {
-//   avg_pdc = 100*sum_pdc/nb_pdc;
-//  sum_pdc = 0;
+//   avg_pdc = sum_pdc/nb_pdc;
+//   sum_pdc = 0;
 //   nb_pdc = 0;
+//
+// cast à la main : ça marche !   
+//   for (pdc = 0; pdc < 255; pdc ++) {
+//     if (pdc > avg_pdc ){    
+//     break;
+//    }  
+//   }
 //
 //   if(avg_pdc > 0.95*limite_PWM) {
 //    isSaturated = 1; 
 //    satTime = millis();
 //   }
 //   
-//   if(avg_pdc < 0.95*limite_PWM) {
+//  if(avg_pdc < 0.95*limite_PWM) {
 //    isSaturated = 0; 
 //  }
 //   precTime2 = millis();
@@ -160,22 +170,15 @@ void loop() {
    }
 
 // test d'un entier bidon : ça marche !   
-//   if (millis() - precTime > 1000) {
-//     fake_counter=fake_counter*2;
-//     if(fake_counter > 32768) {
-//       fake_counter = 1;
-//     }
-//   }
-   
-// cast à la main : ça marche !   
-   for (pdc = 0; pdc < 1000; pdc ++) {
-     if (pdc > pwm_duty_cycle ){    
-     break;
-    }  
+   if (millis() - precTime > 1000) {
+     fake_counter=fake_counter*2;
+     if(fake_counter > 32768) {
+       fake_counter = 1;
+     }
    }
    
    char buff[6]; // 3 int ! attention la limite est à 20 bytes ?
-   intToChar.i = pdc;
+   intToChar.i = fake_counter;
    buff[0] = intToChar.c[0];
    buff[1] = intToChar.c[1];
    
