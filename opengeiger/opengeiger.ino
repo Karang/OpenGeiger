@@ -91,6 +91,16 @@ int countCallback(uint32_t ulPin) {  //interruption generé par un coup
   count++;
   return 0;
 }
+
+void startCounter() {
+  NRF_TIMER2->MODE = TIMER_MODE_MODE_Counter;
+  NRF_TIMER2->TASKS_CLEAR = 1; 
+  NRF_TIMER2->BITMODE = TIMER_BITMODE_BITMODE_16Bit;
+  
+  int ppi = find_free_PPI_channel(255);
+  
+  NRF_TIMER2->TASKS_START = 1;
+}
  
 void setup() {
   pinMode(PIN_PWM, OUTPUT);
@@ -107,6 +117,7 @@ void setup() {
   analogReference(VBG); // Référence de 1.2V interne
  
   RFduino_pinWakeCallback(PIN_COMPTEUR, LOW, countCallback);
+  //startCounter();
  
   RFduinoBLE.deviceName = "OpenGeiger"; // Le nom et la description doivent faire
   RFduinoBLE.advertisementData = "ChS-2"; // moins de 18 octets en tout.
