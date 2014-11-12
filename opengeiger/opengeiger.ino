@@ -1,9 +1,4 @@
 #include <RFduinoBLE.h>
-#include "./Adafruit_NeoPixel.h"
-// CS 10/11/2014
-// Version experimentale : inclut la transmission de l'information concernant
-// le PWM d'asservissement HT
-// en vue du signalement de la saturation du tube
 
 // Pins
 #define PIN_ALIM 1
@@ -44,9 +39,10 @@ int isBatLowOn = 0;
 // Indicateurs à leds
 #define LED_ETAT 0
 #define LED_BLUETOOTH 1
-#define NB_LEDS 2
-#define LED_BRIGHTNESS 32
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(NB_LEDS, PIN_LEDS, NEO_GRB + NEO_KHZ800);
+#define NB_PIXELS 2
+
+const int nb_leds = NB_PIXELS*3;
+uint8_t leds[nb_leds];
 
 // Utilitaires de conversion
 union _intToChar {
@@ -101,18 +97,53 @@ void startCounter() {
   
   NRF_TIMER2->TASKS_START = 1;
 }
+
+// Gestion des leds
+// http://forum.rfduino.com/index.php?topic=30.30
+
+void setRGB(int led, uint8_t r, uint8_t g, uint8_t b) {
+  leds[led*3] = g;
+  leds[led*3+1] = r;
+  leds[led*3+2] = b;
+}
+
+void showLeds() {
+  noInterrupts();
+  for (int wsOut = 0; wsOut < nb_leds; wsOut++) {
+    for (int x=7; x>=0; x--) {
+      NRF_GPIO->OUTSET = (1UL << PIN_LEDS);
+      if (leds[wsOut] & (0x01 << x)) {
+        __ASM ( \
+              " NOP\n\t" \
+              " NOP\n\t" \
+              " NOP\n\t" \
+              " NOP\n\t" \
+              " NOP\n\t" \
+              );
+        NRF_GPIO->OUTCLR = (1UL << PIN_LEDS);
+      } else {
+        NRF_GPIO->OUTCLR = (1UL << PIN_LEDS);
+        __ASM ( \
+              " NOP\n\t" \
+              " NOP\n\t" \
+              " NOP\n\t" \
+              );      
+      }
+    }
+  }
+  delayMicroseconds(50); // latch and reset WS2812.
+  interrupts();  
+}
  
 void setup() {
   pinMode(PIN_PWM, OUTPUT);
   pinMode(PIN_MESURE_HT, INPUT);
   pinMode(PIN_COMPTEUR, INPUT);
+  pinMode(PIN_LEDS, OUTPUT);
   
-  strip.begin();
-  strip.setBrightness(LED_BRIGHTNESS);
-  
-  strip.setPixelColor(LED_BLUETOOTH, strip.Color(0, 0, 0));
-  strip.setPixelColor(LED_ETAT, strip.Color(0, 255, 0));
-  strip.show();
+  setRGB(LED_BLUETOOTH, 0, 0, 0);
+  setRGB(LED_ETAT, 0, 32, 0);
+  showLeds();
   
   analogReference(VBG); // Référence de 1.2V interne
  
@@ -133,8 +164,8 @@ void loop() {
    int alim_tension = ((analogRead(PIN_ALIM) * 360.0 * ALIM_VOLT_DIV_INV) / 1023.0);
    
    if ((alim_tension<BAT_LOW*100) && (!isBatLowOn)) {
-     strip.setPixelColor(LED_ETAT, strip.Color(255, 255, 0));
-     strip.show();
+     setRGB(LED_ETAT, 32, 32, 0);
+     showLeds();
      isBatLowOn=1;
    }
    
@@ -178,14 +209,14 @@ void loop() {
 
 void RFduinoBLE_onConnect() {
   isCo = 1; // Un smartphone s'est connecté
-  strip.setPixelColor(LED_BLUETOOTH, strip.Color(0, 0, 255)); // Etat bluetooth
-  strip.show();
+  setRGB(LED_BLUETOOTH, 0, 0, 32); // Etat bluetooth
+  showLeds();
 }
  
 void RFduinoBLE_onDisconnect() {
  isCo = 0; // Un smartphone s'est déconnecté
- strip.setPixelColor(LED_BLUETOOTH, strip.Color(0, 0, 0));
- strip.show();
+  setRGB(LED_BLUETOOTH, 0, 0, 0); // Etat bluetooth
+  showLeds();
 }
  
 int getInt(char*data, int len) {
