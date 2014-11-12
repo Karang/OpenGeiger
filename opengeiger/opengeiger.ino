@@ -1,4 +1,4 @@
-  #include <RFduinoBLE.h>
+#include <RFduinoBLE.h>
 #include "./Adafruit_NeoPixel.h"
 // CS 10/11/2014
 // Version experimentale : inclut la transmission de l'information concernant
@@ -19,7 +19,7 @@
 #define TOLERANCE 8.0
 
 float actual_tension = 0.0;
-float ref_tension = 0;
+float ref_tension = 0; 
 
 // PWM
 #define PERIOD 2000
@@ -136,46 +136,21 @@ void setup() {
 }
 
 void loop() {
-  
-//  if (millis() - precTime2 > 2000) {
-//   avg_pdc = sum_pdc/nb_pdc;
-//   sum_pdc = 0;
-//   nb_pdc = 0;
-//
-// cast à la main : ça marche !   
-//   for (pdc = 0; pdc < 255; pdc ++) {
-//     if (pdc > avg_pdc ){    
-//     break;
-//    }  
-//   }
-//
-//   if(avg_pdc > 0.95*limite_PWM) {
-//    isSaturated = 1; 
-//    satTime = millis();
-//   }
-//   
-//  if(avg_pdc < 0.95*limite_PWM) {
-//    isSaturated = 0; 
-//  }
-//   precTime2 = millis();
-//  }
-  
   if (millis() - precTime > 1000) { // Toutes les secondes, on envoi le comptage et la tension au smartphone
    int alim_tension = ((analogRead(PIN_ALIM) * 360.0 * ALIM_VOLT_DIV_INV) / 1023.0);
    
-   if((alim_tension<BAT_LOW*100)&&(!isBatLowOn)) {
+   if ((alim_tension<BAT_LOW*100)&&(!isBatLowOn)) {
      strip.setPixelColor(LED_ETAT, strip.Color(255, 255, 0));
      strip.show();
      isBatLowOn=1;
    }
 
 // test d'un entier bidon : ça marche !   
-   if (millis() - precTime > 1000) {
-     fake_counter=fake_counter*2;
-     if(fake_counter > 16384) {
-       fake_counter = 1;
-     }
-   }
+   fake_counter=fake_counter*2;
+    if(fake_counter > 16384) {
+      fake_counter = 1;
+    }
+
    
    char buff[8]; // 3 int ! attention la limite est à 20 bytes ?
    intToChar.i = fake_counter;
@@ -194,10 +169,6 @@ void loop() {
    buff[6] = intToChar.c[0];
    buff[7] = intToChar.c[1];
    
-   //memcpy(&buff[0], &pwm_duty_cycle, sizeof(int));
-   //memcpy(&buff[2], &alim_tension, sizeof(int));
-   //memcpy(&buff[4], &count, sizeof(int));
-   
    while (! RFduinoBLE.send((const char*)buff, 8));
    
    precTime = millis();
@@ -212,9 +183,8 @@ void loop() {
  }
  
  if (abs(ref_tension - actual_tension) > TOLERANCE) {
-   float a = pwm_duty_cycle + (ref_tension - actual_tension) * kP;
-   int b=int(a);
-   pwm_duty_cycle = min(b, limite_PWM);
+   int a = (int) (pwm_duty_cycle + (ref_tension - actual_tension) * kP);
+   pwm_duty_cycle = min(a, limite_PWM);
    
 //   sum_pdc = sum_pdc + pwm_duty_cycle;
 //   nb_pdc++;
