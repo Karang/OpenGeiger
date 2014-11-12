@@ -16,7 +16,7 @@
 // Asservissement
 #define VOLTAGE_DIVIDER_INV 315
 #define kP 0.0152 // Valeure déterminée expérimentalement
-#define TOLERANCE 8.0
+#define TOLERANCE 4.0
 
 float actual_tension = 0.0;
 float ref_tension = 0;
@@ -26,25 +26,15 @@ float ref_tension = 0;
 #define PWM_RESOLUTION 255
 #define max_duty_cycle 0.8  //Cette valeur est le pourcentage maximal du rapport cyclique que le PWM peut atteindre
 
-int fake_counter = 0;
-int pwm_duty_cycle = 0;
+float pwm_duty_cycle = 0;
 int pwm_count = 0;
 //int limite_PWM=max_duty_cycle*PWM_RESOLUTION;
-int limite_PWM=204;
-// int pdc = 0;
-// int sum_pdc = 0;
-// float avg_pdc = 0.0;
-// int nb_pdc = 0;
+float limite_PWM=204.0;
 
 // Bluetooth et comptage
 int count = 0;
 long precTime;
 int isCo = 0;
-// int isSaturated  = 0;
-// int isWarningOn = 0;
-// long satTime;
-long precTime2;
-
 
 // Alimentation
 #define ALIM_VOLT_DIV_INV 1.3
@@ -54,9 +44,7 @@ int isBatLowOn = 0;
 // Indicateurs à leds
 #define LED_ETAT 0
 #define LED_BLUETOOTH 1
-// #define LED_PULSE 2
 #define NB_LEDS 2
-//#define NB_LEDS 3
 #define LED_BRIGHTNESS 32
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NB_LEDS, PIN_LEDS, NEO_GRB + NEO_KHZ800);
 
@@ -109,8 +97,6 @@ void setup() {
   pinMode(PIN_MESURE_HT, INPUT);
   pinMode(PIN_COMPTEUR, INPUT);
   
-  fake_counter = 1;
-  
   strip.begin();
   strip.setBrightness(LED_BRIGHTNESS);
   
@@ -142,7 +128,7 @@ void loop() {
    }
    
    char buff[8]; // 3 int ! attention la limite est à 20 bytes ?
-   intToChar.i = pwm_duty_cycle;
+   intToChar.i = (int) pwm_duty_cycle;
    buff[0] = intToChar.c[0];
    buff[1] = intToChar.c[1];
    
@@ -169,13 +155,13 @@ void loop() {
  
  if (isCo==0) {
    ref_tension = 0.0;
-   pwm_duty_cycle = 0;
+   pwm_duty_cycle = 0.0;
  }
  
  if (abs(ref_tension - actual_tension) > TOLERANCE) {
    float d = (ref_tension - actual_tension) * kP;
-   int a = (int)(pwm_duty_cycle + d);
-   pwm_duty_cycle = max(0, min(a, limite_PWM));
+   float a = pwm_duty_cycle + d;
+   pwm_duty_cycle = max(0.0, min(a, limite_PWM));
  }
 }
 
