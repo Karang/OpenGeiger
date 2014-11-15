@@ -1,12 +1,19 @@
 #include <RFduinoBLE.h>
 
+// GPIOTE :
+#define GPIOTE_COUNT 0
+#define GPIOTE_FOLLOW 1
+#define GPIOTE_LED 2
+#define GPIOTE_BUZZER 3
+
 // Pins
+#define PIN_FLASH 0
 #define PIN_ALIM 1
 #define PIN_PWM 2
 #define PIN_MESURE_HT 3
 #define PIN_COMPTEUR 4
 #define PIN_LEDS 5
-// define PIN_BUZZER 6 inutilisee pour l instant
+#define PIN_BUZZER 6 
 
 // Asservissement
 #define VOLTAGE_DIVIDER_INV 315
@@ -70,6 +77,10 @@ void TIMER1_INTERUPT(void) {
   }
 }
 
+// Timer PWM 
+// passer en paramètre NRF_TIMER1
+// NRF_TIMER0 est utilise par le BT
+// NRF_TIMER2 est utilise pour le comptage
 void configTimer(NRF_TIMER_Type* nrf_timer, IRQn_Type irqn, callback_t callback) {
   nrf_timer->TASKS_STOP = 1; // Arrete le timer
   nrf_timer->MODE = TIMER_MODE_MODE_Timer;
@@ -83,19 +94,49 @@ void configTimer(NRF_TIMER_Type* nrf_timer, IRQn_Type irqn, callback_t callback)
   nrf_timer->TASKS_START = 1; // Redemarre le timer
 }
 
-int countCallback(uint32_t ulPin) {  //interruption generé par un coup
-  count++;
-  return 0;
+// Timer counter
+void configCounter() {
+  // Config GPIO Event (gpiote_channel, pin, polaritée)
+  nrf_gpiote_event_config(GPIOTE_COUNT, PIN_COMPTEUR, NRF_GPIOTE_POLARITY_LOTOHI);
+ 
+  // Config counter
+  NRF_TIMER2->MODE = TIMER_MODE_MODE_Counter;
+  NRF_TIMER2->BITMODE = TIMER_BITMODE_BITMODE_16Bit;
+  NRF_TIMER2->TASKS_START = 1;
+ 
+  // Config PPI
+  int ppi_counter = find_free_PPI_channel(255);
+  NRF_PPI->CH[ppi_counter].EEP = (uint32_t)&NRF_GPIOTE->EVENTS_IN[GPIOTE_COUNT]; // Input
+  NRF_PPI->CH[ppi_counter].TEP = (uint32_t)&NRF_TIMER2->TASKS_COUNT; // Output
+ 
+  NRF_PPI->CHEN |= (1 << ppi_counter); // Active le canal PPI
 }
 
-void startCounter() {
-  NRF_TIMER2->MODE = TIMER_MODE_MODE_Counter;
-  NRF_TIMER2->TASKS_CLEAR = 1; 
-  NRF_TIMER2->BITMODE = TIMER_BITMODE_BITMODE_16Bit;
+void configFollower(){ 
   
-  int ppi = find_free_PPI_channel(255);
+  // GPIO Event (gpiote_channel, pin, polaritée)
+  nrf_gpiote_event_config(GPIOTE_FOLLOW, PIN_COMPTEUR, NRF_GPIOTE_POLARITY_TOGGLE);
+ 
+  // GPIO Task (gpiote_channel, pin, polaritée, etat_initial)
+  nrf_gpiote_task_config(GPIOTE_LED, PIN_FLASH, NRF_GPIOTE_POLARITY_TOGGLE, NRF_GPIOTE_INITIAL_VALUE_LOW);
+  nrf_gpiote_task_config(GPIOTE_BUZZER, PIN_BUZZER, NRF_GPIOTE_POLARITY_TOGGLE, NRF_GPIOTE_INITIAL_VALUE_LOW);
+ 
+  // Valeures possibles pour la polaritée :
+  // NRF_GPIOTE_POLARITY_LOTOHI
+  // NRF_GPIOTE_POLARITY_HITOLO
+  // NRF_GPIOTE_POLARITY_TOGGLE
+ 
+  // Config PPI
+  int ppi_led = find_free_PPI_channel(255);
+  NRF_PPI->CH[ppi_led].EEP = (uint32_t)&NRF_GPIOTE->EVENTS_IN[GPIOTE_FOLLOW]; // Input
+  NRF_PPI->CH[ppi_led].TEP = (uint32_t)&NRF_GPIOTE->TASKS_OUT[GPIOTE_LED]; // Output
+  NRF_PPI->CHEN |= (1 << ppi_led); // Active le canal PPI
   
-  NRF_TIMER2->TASKS_START = 1;
+  int ppi_buzzer = find_free_PPI_channel(255);
+  NRF_PPI->CH[ppi_buzzer].EEP = (uint32_t)&NRF_GPIOTE->EVENTS_IN[GPIOTE_FOLLOW]; // Input
+  NRF_PPI->CH[ppi_buzzer].TEP = (uint32_t)&NRF_GPIOTE->TASKS_OUT[GPIOTE_BUZZER]; // Output
+ 
+  NRF_PPI->CHEN |= (1 << ppi_buzzer); // Active le canal PPI
 }
 
 // Gestion des leds
@@ -147,8 +188,8 @@ void setup() {
   
   analogReference(VBG); // Référence de 1.2V interne
  
-  RFduino_pinWakeCallback(PIN_COMPTEUR, LOW, countCallback);
-  //startCounter();
+  configCounter();
+  configFollower();
  
   RFduinoBLE.deviceName = "OpenGeiger"; // Le nom et la description doivent faire
   RFduinoBLE.advertisementData = "ChS-2"; // moins de 18 octets en tout.
@@ -178,6 +219,9 @@ void loop() {
    buff[2] = intToChar.c[0];
    buff[3] = intToChar.c[1];
    
+   NRF_TIMER2->TASKS_CAPTURE[0] = 1; // capture le comptage dans CC[0]
+   count = (uint8_t)NRF_TIMER2->CC[0];
+   
    intToChar.i = count;
    buff[4] = intToChar.c[0];
    buff[5] = intToChar.c[1];
@@ -189,6 +233,8 @@ void loop() {
    while (! RFduinoBLE.send((const char*)buff, 8));
    
    precTime = millis();
+   
+   NRF_TIMER2->TASKS_CLEAR = 1; // count = 0;
    count = 0;
  }
  
