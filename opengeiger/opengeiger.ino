@@ -21,7 +21,7 @@
 #define TOLERANCE 4.0
 
 float actual_tension = 0.0;
-float ref_tension = 0;
+float set_tension = 0;
 
 // PWM
 #define PERIOD 2000
@@ -242,12 +242,12 @@ void loop() {
  actual_tension = ((actual_tension * 3.6) / 1023.0) * VOLTAGE_DIVIDER_INV;
  
  if (isCo==0) {
-   ref_tension = 0.0;
+   set_tension = 0.0;
    pwm_duty_cycle = 0.0;
  }
  
- if (abs(ref_tension - actual_tension) > TOLERANCE) {
-   float d = (ref_tension - actual_tension) * kP;
+ if (abs(set_tension - actual_tension) > TOLERANCE) {
+   float d = (set_tension - actual_tension) * kP;
    float a = pwm_duty_cycle + d;
    pwm_duty_cycle = max(0.0, min(a, limite_PWM));
  }
@@ -276,5 +276,5 @@ int getInt(char*data, int len) {
 }
  
 void RFduinoBLE_onReceive(char *data, int len) {
-  ref_tension = getInt(data, len);
+  set_tension = getInt(data, len);
 }
